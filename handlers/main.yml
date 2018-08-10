@@ -1,0 +1,6 @@
+---
+- name: restart apache
+  #  (excluding case when docker container)
+  service:
+    name: httpd
+    state: "{{ 'stopped' if 'container' in group_names else 'restarted' }}"

@@ -1,0 +1,45 @@
+---
+- name: install ius repository
+  yum:
+    name: https://rhel6.iuscommunity.org/ius-release.rpm
+
+- name: install apache
+  yum:
+    name: "{{ item }}"
+  with_items:
+    - httpd24u
+    - httpd24u-tools
+
+- name: set running user and group
+  replace:
+    path: /etc/httpd/conf/httpd.conf
+    regexp: '{{ item.regexp }}'
+    replace: '{{ item.replace }}'
+  with_items:
+    - regexp: ^User\s.*$
+      replace: User {{ apache_2_4_running_user }}
+    - regexp: ^Group\s.*$
+      replace: Group {{ apache_2_4_running_user }}
+
+- name: add deploy user into apache group
+  user:
+    groups: '{{ apache_2_4_running_user }}'
+    name: '{{ roles_common_deploy_user }}'
+
+- name: set umask to add writable permission for apache group users
+  lineinfile:
+    path: /etc/sysconfig/httpd
+    line: umask 002
+
+- name: enable service on boot (excluding case when docker container)
+  service:
+    name: httpd
+    enabled: "{{ 'no' if 'container' in group_names else 'yes' }}"
+
+- name: set logrotate as daily
+  blockinfile:
+    path: /etc/logrotate.d/httpd
+    insertafter: ^\s*endscript$
+    block: |
+      daily
+
