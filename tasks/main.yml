@@ -1,14 +1,26 @@
 ---
+# @see https://aws.amazon.com/jp/premiumsupport/knowledge-center/ec2-enable-epel/
+- name: calculate epel yum repository to install
+  set_fact:
+    epel_yum_repository: "{{ 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm' if ansible_distribution == 'Amazon' and ansible_service_mgr == 'sysvinit' else 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm' if ansible_distribution == 'Amazon' and ansible_service_mgr == 'upstart' else 'epel-release' }}"
+
+- name: install epel yum repository to install ius repository
+  yum:
+    name: "{{ epel_yum_repository }}"
+
+- name: calculate rhel version to install ius repository
+  set_fact:
+    rhel_version: "{{ '7' if ansible_distribution == 'Amazon' and ansible_service_mgr == 'sysvinit' or ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7' else '6' }}"
+
 - name: install ius repository
   yum:
-    name: https://rhel6.iuscommunity.org/ius-release.rpm
+    name: https://rhel{{ rhel_version }}.iuscommunity.org/ius-release.rpm
 
 - name: install apache
   yum:
-    name: "{{ item }}"
-  with_items:
-    - httpd24u
-    - httpd24u-tools
+    name:
+      - httpd24u
+      - httpd24u-tools
 
 - name: set running user and group
   replace:
@@ -35,6 +47,7 @@
   service:
     name: httpd
     enabled: "{{ 'no' if 'container' in group_names else 'yes' }}"
+  when: ansible_distribution == 'Amazon' and ansible_service_mgr == 'upstart' or ansible_distribution == 'CentOS' and ansible_distribution_major_version == '6'
 
 - name: set logrotate as daily
   blockinfile:
@@ -42,4 +55,3 @@
     insertafter: ^\s*endscript$
     block: |
       daily
-
